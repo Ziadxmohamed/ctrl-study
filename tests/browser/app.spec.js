@@ -122,3 +122,17 @@ test('embedded player sandbox blocks popup and top-page navigation',async({page,
  const frame=page.frameLocator('#yt-player');await frame.locator('#popup').click();await expect(frame.locator('#result')).toHaveText('blocked');expect(context.pages().length).toBe(1);
  await frame.locator('#top').click();expect(page.url()).toContain('#watch/3blue1brown/r6sGWTCMz2k');expect(context.pages().length).toBe(1);
 });
+
+test('lesson visibility pairs returns and unfinished playback warns before reload',async({page})=>{
+ await page.addInitScript(()=>{window.YT={Player:class{
+ constructor(id,options){this.options=options;this.state=5;window.testPlayer=this;queueMicrotask(()=>options.events.onReady())}
+ getPlayerState(){return this.state}getCurrentTime(){return 10}getDuration(){return 100}destroy(){}
+ }}});
+ await page.goto('./#watch/3blue1brown/r6sGWTCMz2k');await page.locator('#language').click();await page.getByRole('button',{name:'Load lesson player'}).click();
+ await page.evaluate(()=>{const p=window.testPlayer;p.state=1;p.options.events.onStateChange({data:1});let hidden=true;Object.defineProperty(document,'hidden',{configurable:true,get:()=>hidden});document.dispatchEvent(new Event('visibilitychange'));document.dispatchEvent(new Event('visibilitychange'));hidden=false;document.dispatchEvent(new Event('visibilitychange'));document.dispatchEvent(new Event('visibilitychange'));});
+ const read=()=>page.evaluate(()=>JSON.parse(localStorage.getItem('ctrl-activity'))['3blue1brown/r6sGWTCMz2k']);
+ const r=await read();expect(r.tabHides).toBe(1);expect(r.tabReturns).toBe(1);expect(r.hiddenSeconds).toBeGreaterThanOrEqual(0);expect(r.events.map(e=>e.type)).toContain('tab_return');
+ const dialogPromise=page.waitForEvent('dialog');const reload=page.close({runBeforeUnload:true});const dialog=await dialogPromise;expect(dialog.type()).toBe('beforeunload');await dialog.dismiss();await reload;expect((await read()).closeAttempts).toBe(1);
+ await page.evaluate(()=>{const p=window.testPlayer;p.state=0;p.options.events.onStateChange({data:0})});await page.reload();
+ await page.goto('./#activity/3blue1brown/r6sGWTCMz2k');await expect(page.locator('.activity-events')).toContainText('Returned to lesson tab');await expect(page.locator('.activity-events')).toContainText('may have been canceled');
+});
