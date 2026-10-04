@@ -84,31 +84,13 @@ Use API metrics/quotas in Google Cloud to monitor usage. Public channel metadata
 
 ## Administrator workflow
 
-### Add a channel and publish without editing JSON
+### Add a channel from the admin page
 
-Use **Add approved channel** in GitHub Actions. The admin page has an Arabic button linking to it.
+Open `/admin/`, enter the administration credential and choose whether to remember it on this browser. This is a repository-scoped fine-grained token with Actions read/write permission, separate from the YouTube API key. Remembering is opt-in and stores the token in localStorage; logout deletes it. The public page is not itself an authentication boundary: publishing is authorized by the remote API.
 
-1. Open `https://github.com/Ziadxmohamed/ctrl-study/actions/workflows/add-channel.yml` and sign in to the GitHub account authorized to write to the repository.
-2. Click **Run workflow**, select `main`, and enter the YouTube channel URL.
-3. Set the subject ID: `arabic`, `mathematics`, `english`, `science`, `physics`, `chemistry`, or `biology` for the provided subjects. Newly configured subject IDs are also supported. The default is `arabic`.
-4. Teacher name and grade are optional. An omitted teacher name defaults to the resolved channel name, or preserves an existing custom teacher name.
-5. Click **Run workflow**. The workflow resolves the channel, saves its approval, synchronizes lessons, commits the configuration/data, and automatically deploys the site. Wait for the **Add approved channel** and subsequent **Deploy CTRL Study** runs to finish successfully, then reload the student page.
+Enter the channel URL, subject, optional teacher and grade, then publish. The page shows queued/synchronizing/publishing progress, monitors the exact workflow run ID, and confirms success only after the live library contains the requested configuration and synchronized videos. Adding an existing normalized URL updates its configuration without duplication. Publication errors remain visible in the page.
 
-The existing `YOUTUBE_API_KEY` secret is reused. No credential is entered on the public admin page. Adding an existing normalized URL updates its subject, optional grade and teacher, preserves its ID/date/order, and re-enables it without duplication. An empty grade clears the grade. Invalid URLs, unknown subjects and unresolved channels fail without publishing. If the requested channel cannot synchronize, no configuration change is committed; inspect the workflow error and retry. A valid channel with no public embeddable uploads can appear with zero lessons.
-
-This workflow and the scheduled synchronization share one concurrency group and check out the latest `main` after acquiring it. Simultaneous manual edits can still cause a rejected Git push; review the latest configuration and retry rather than overriding another administrator's changes.
-
-### Draft editor for advanced configuration
-
-Visit `https://USERNAME.github.io/ctrl-study/admin/` (or `/admin/` locally). This is a **public draft editor**, not authentication. Anyone can draft files, but only an authorized GitHub account can publish them. It never asks for an API key, GitHub token, or fake admin password. Its Arabic GitHub button opens the authenticated publishing workflow; the JSON forms below it remain drafts. Drafts live only in the current tab and are lost on reload unless exported.
-
-1. Add a channel URL, subject, teacher name and optional grade.
-2. Edit, disable, enable, delete, or move channels up/down. Manage subject names/icons and order in the same editor. A subject in use cannot be deleted until its channels are reassigned or removed.
-3. Click **Download configuration files**. Allow multiple downloads if your browser asks. Review both files.
-4. In GitHub, replace `data/subjects.json` and `data/approved-channels.json` with the exported files. Commit together to `main` using GitHub's upload-files page or a reviewed pull request.
-5. Run **Sync YouTube channels**. Channel name, ID, thumbnail and lessons are populated automatically. View the sync status in the editor after deployment.
-
-You can also edit JSON directly using GitHub's authenticated file editor. The browser editor does not write to GitHub. Direct write-back from the public browser editor would require an authenticated backend or GitHub App. The native GitHub workflow above provides authenticated remote publication without storing credentials in the browser. For multiple administrators, use branch protection and pull-request review. GitHub workflow dispatch is already authenticated by GitHub.
+The add-channel workflow synchronizes only its target and preserves other channel data; scheduled synchronization still scans all approved channels. Both workflows share a concurrency group. Runner queue time and the separate deployment job still add latency. Source configuration can be edited through reviewed repository changes.
 
 ### Supported channel URLs
 
@@ -175,7 +157,7 @@ Malformed source configuration fails the workflow before publication. Missing/ma
 
 The official YouTube IFrame Player API loads **after** the student clicks **Load lesson player**. Playback uses `youtube-nocookie.com`, inline mobile playback, the current origin, and `rel=0`. The minimum player size is 200 × 200. The app does not conceal or overlay official player controls. YouTube may still show its own links, advertisements and related videos; `rel=0` limits related videos to the same channel, not to zero recommendations. Privacy-enhanced embedding is not an assertion of anonymity.
 
-Playback position is saved every five seconds while playing, using the API's actual current time. Ended lessons are marked complete. Students can also mark completion manually. Progress is non-sensitive, local to that device/browser, and can be erased from **Privacy & access**. Thumbnails contact Google's image servers when visible. Loading the player contacts YouTube and follows its policies; no video media is proxied or cached. Progress does not sync across devices and may be unavailable in storage-restricted/private modes.
+Playback position is checkpointed at most every five seconds and on player events. Automatic completion requires reaching the end with at least 90% unique playback coverage. Students can also mark completion manually, shown separately from measured viewing. Progress is non-sensitive, local to that device/browser, and can be erased from **Privacy & access**. Thumbnails contact Google's image servers when visible. Loading the player contacts YouTube and follows its policies; no video media is proxied or cached. Progress does not sync across devices and may be unavailable in storage-restricted/private modes.
 
 ## PWA installation and caching
 
@@ -214,7 +196,7 @@ npm run test:browser
 
 `npm test` exercises URL parsing, configuration validation, pagination, status verification, unavailable/private videos, duration parsing, retries, quota preservation, channel isolation, changed/disabled approvals and approved-only search. API calls use fixtures; they do not need or expose a key. Browser interaction tests use an isolated fixture library so changing approved production channels does not break CI; service-worker tests exercise the real local catalog.
 
-Browser tests use desktop and mobile Chromium with a real HTTP server under `/repository/`. They check Arabic RTL, English LTR, overflow, navigation, subject/channel pages, search, filters, player load/error/progress behavior, empty/error states, admin drafts, PWA assets, and subpath references. Additional service-worker tests verify scoped registration and offline behavior. CI installs Chromium and runs all checks. The sync and data-validation scripts use Node's standard library only. Workflow-syntax tests use the development dependency `yaml`; browser tests use Playwright.
+Browser tests use desktop and mobile Chromium with a real HTTP server under `/repository/`. They check Arabic RTL, English LTR, overflow, navigation, subject/channel pages, search, filters, player load/error/progress behavior, empty/error states, local viewing activity and admin publishing, PWA assets, and subpath references. Additional service-worker tests verify scoped registration and offline behavior. CI installs Chromium and runs all checks. The sync and data-validation scripts use Node's standard library only. Workflow-syntax tests use the development dependency `yaml`; browser tests use Playwright.
 
 Live YouTube API integration needs your secret. Real Android Chrome, Samsung Internet and Xiaomi browser testing, installation, and playback under your NextDNS profile still require those devices/network policies. Chromium emulation does not establish compatibility with every OEM browser. GitHub deployment must be verified in your account after enabling Pages. See [Google's channel API reference](https://developers.google.com/youtube/v3/docs/channels/list), [uploads playlist API](https://developers.google.com/youtube/v3/docs/playlistItems/list), [player parameters](https://developers.google.com/youtube/player_parameters), and [GitHub Pages workflow documentation](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages) for the underlying platform behavior.
 
@@ -230,10 +212,17 @@ data/approved-channels.json administrator-managed channel approvals
 data/channels.json         generated resolved channel metadata
 data/videos.json           generated approved-channel lessons
 data/sync-status.json      generated diagnostics (demo marker initially)
-admin/                     public draft editor / JSON import-export
+admin/                     publishing form and remembered browser credential
 scripts/                   dependency-free sync, validation, test server
 .github/workflows/         sync, channel registration, Pages deployment, CI checks
 tests/                     Node unit tests and Playwright browser tests
 manifest.json              relative PWA configuration
 service-worker.js          shell caching, no video/catalog cache
 ```
+
+
+## Local viewing activity
+
+`#activity` and the admin link show opens, play/resume transitions, pauses, forward and backward seeks, large skips, end events, and estimated unique playback coverage. Events start when this version is installed, are keyed by approved channel/video, and remain in this browser under `ctrl-activity`. Only approved lessons appear in the report. The latest 200 detailed events per video are retained; aggregate counts and coverage remain. Clear progress also clears viewing activity.
+
+The tracker samples the official player every 500 ms. A forward discontinuity exceeds expected progression by at least three seconds; a backward discontinuity is at least three seconds. A large forward skip is at least 30 seconds or 20% of the duration. A jump to the final 5% is flagged. Seek detection is inferred, not a direct seek event; multiple actions between samples may be indistinguishable. Playback speed is accounted for. Buffering is not counted as a pause. Resume baselines and gaps over three seconds (including background throttling or sleep) are not credited or interpreted as seeks. Coverage merges actually sampled playing intervals without double-counting replays. It measures playback, not attention, identity, or historical viewing before tracking was enabled.

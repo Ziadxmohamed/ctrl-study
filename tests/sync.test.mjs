@@ -62,3 +62,12 @@ test('API retries transient requests, redacts API errors and does not leak key',
  let calls=0;const api=createApi('secret',async()=>{calls++;if(calls<3)return {ok:false,status:503,json:async()=>({error:{message:'secret'}})};return {ok:true,json:async()=>({items:[]})}},async()=>{});assert.deepEqual(await api('channels',{}),{items:[]});assert.equal(calls,3);
  const failed=createApi('secret',async()=>({ok:false,status:403,json:async()=>({error:{message:'secret',errors:[{reason:'quotaExceeded'}]}})}));await assert.rejects(failed('channels',{}),e=>e.message==='quotaExceeded');
 });
+
+test('targeted channel addition preserves other libraries and fetches only the target',async()=>{
+ const second={...config,id:'new-teacher',url:'https://www.youtube.com/@newteacher'};
+ const status={channels:[{id:config.id,status:'ok',videoCount:1,lastSuccessAt:'2026-01-01T00:00:00Z'}]};
+ const calls=[];const api=apiFactory({pages:1});
+ const result=await synchronize(subject,[config,second],{channels:[channel],videos:[video],status},async(r,p)=>{calls.push([r,p]);return api(r,p)},'2026-10-04T00:00:00Z',{onlyChannel:second.id});
+ assert.equal(calls.filter(([r])=>r==='channels').length,1);assert.equal(calls[0][1].forHandle,'@newteacher');assert.equal(result.videos.length,2);assert.equal(result.status.channels[0].lastSuccessAt,'2026-01-01T00:00:00Z');assert.equal(result.status.channels[1].status,'ok');
+ await assert.rejects(synchronize(subject,[config],{channels:[],videos:[]},api,undefined,{onlyChannel:'unknown'}),/Unknown target/);
+});

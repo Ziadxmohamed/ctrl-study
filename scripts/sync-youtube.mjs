@@ -39,11 +39,16 @@ export async function syncChannel(config,api,{maxPages=200}={}) {
   }
   videos.sort((a,b)=>b.publishedAt.localeCompare(a.publishedAt));return {channel:meta,videos};
 }
-export async function synchronize(subjects,config,previous,api,now=new Date().toISOString()) {
-  validateConfig(subjects,config);const channels=[],videos=[],results=[];let quotaExhausted=false;
+export async function synchronize(subjects,config,previous,api,now=new Date().toISOString(),{onlyChannel=null}={}) {
+  validateConfig(subjects,config);if(onlyChannel&&!config.some(c=>c.id===onlyChannel&&c.enabled))throw new Error('Unknown target channel.');const channels=[],videos=[],results=[];let quotaExhausted=false;
   for(const c of config.filter(c=>c.enabled)){
     const sourceUrl=parseChannelUrl(c.url).url;
     const old=previous.channels.find(x=>x.id===c.id&&x.sourceUrl===sourceUrl);
+    if(onlyChannel&&c.id!==onlyChannel){
+      if(old){channels.push(old);videos.push(...previous.videos.filter(v=>v.channelKey===c.id&&v.channelId===old.channelId&&old.status!=='unavailable').map(v=>({...v,subject:c.subject})));results.push(previous.status?.channels?.find(r=>r.id===c.id)||{id:c.id,status:'error',error:'notSynchronized',lastSuccessAt:null});}
+      else results.push({id:c.id,status:'error',error:'notSynchronized',lastSuccessAt:null});
+      continue;
+    }
     try{
       if(quotaExhausted)throw new ApiError('quotaExceeded');
       const next=await syncChannel(c,api);channels.push(next.channel);videos.push(...next.videos);results.push({id:c.id,status:'ok',videoCount:next.videos.length,lastSuccessAt:now});
@@ -66,7 +71,7 @@ async function main(){const key=process.env.YOUTUBE_API_KEY;if(!key)throw new Er
   const previous={channels:await json('channels',[]),videos:await json('videos',[]),status:await json('sync-status',{})};
   const api=createApi(key);let requests=0;
   const countedApi=async(resource,params)=>{const result=await api(resource,params);if(++requests%50===0)console.log(`Completed ${requests} YouTube list requests.`);return result};
-  const result=await synchronize(subjects,config,previous,countedApi);
+  const result=await synchronize(subjects,config,previous,countedApi,new Date().toISOString(),{onlyChannel:process.env.CTRL_SYNC_CHANNEL||null});
   await mkdir(resolve(ROOT,'data'),{recursive:true});await atomic('channels',result.channels);await atomic('videos',result.videos);await atomic('sync-status',result.status);
   console.log(`Synchronized ${result.status.channels.filter(x=>x.status==='ok').length}/${result.status.channels.length} approved channels; ${result.videos.length} videos.`);
   for(const r of result.status.channels.filter(x=>x.status!=='ok'))console.warn(`${r.id}: ${r.error}`);

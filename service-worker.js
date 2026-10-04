@@ -1,5 +1,5 @@
-const CACHE='ctrl-study-shell-v1';
-const SHELL=['./','index.html','assets/css/style.css','assets/js/app.js','assets/js/model.js','assets/js/i18n.js','assets/icons/icon.svg','assets/icons/lesson.svg','assets/icons/icon-192.png','assets/icons/icon-512.png','manifest.json'];
+const CACHE='ctrl-study-shell-v2';
+const SHELL=['./','index.html','assets/css/style.css','assets/js/app.js','assets/js/activity.js','assets/js/model.js','assets/js/i18n.js','assets/icons/icon.svg','assets/icons/lesson.svg','assets/icons/icon-192.png','assets/icons/icon-512.png','manifest.json'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)));});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('ctrl-study-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});
 self.addEventListener('fetch',event=>{

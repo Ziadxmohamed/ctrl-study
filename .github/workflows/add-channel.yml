@@ -47,9 +47,10 @@ jobs:
           CTRL_SUBJECT: ${{ inputs.subject }}
           CTRL_TEACHER: ${{ inputs.teacher }}
           CTRL_GRADE: ${{ inputs.grade }}
-      - name: Synchronize approved lessons
+      - name: Synchronize requested channel
         run: npm run sync
         env:
+          CTRL_SYNC_CHANNEL: ${{ steps.registration.outputs.channel_key }}
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
       - name: Confirm the requested channel synchronized
         run: |

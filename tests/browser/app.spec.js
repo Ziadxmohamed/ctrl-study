@@ -95,3 +95,18 @@ test('failed publishing stops spinner and never reports success',async({page})=>
  await expect(page.locator('#publish-status')).toContainText('لم تكتمل');await expect(page.locator('#publish-spinner')).toBeHidden();await expect(page.locator('#view-channel')).toBeHidden();await expect(page.locator('#publish-channel')).toBeEnabled();
 });
 
+
+test('viewing report counts pauses and large skips without crediting completion',async({page},testInfo)=>{
+ await page.addInitScript(()=>{window.YT={Player:class{
+  constructor(id,options){this.options=options;this.time=0;this.state=5;window.testPlayer=this;(typeof id==='string'?document.getElementById(id):id).textContent='Fixture player';queueMicrotask(()=>options.events.onReady())}
+  getPlayerState(){return this.state}getCurrentTime(){return this.time}getDuration(){return 100}getPlaybackRate(){return 1}destroy(){}
+ }}});
+ await page.goto('./#watch/3blue1brown/r6sGWTCMz2k');await page.locator('#language').click();await page.getByRole('button',{name:'Load lesson player'}).click();
+ await page.evaluate(()=>{const p=window.testPlayer;const state=n=>{p.state=n;p.options.events.onStateChange({data:n})};state(1);state(2);state(2);state(1);p.time=98;state(1);p.time=100;state(0)});
+ const record=await page.evaluate(()=>JSON.parse(localStorage.getItem('ctrl-activity'))['3blue1brown/r6sGWTCMz2k']);expect(record.opens).toBe(1);expect(record.pauses).toBe(1);expect(record.forward).toBe(1);expect(record.largeForward).toBe(1);expect(record.ends).toBe(1);
+ expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('ctrl-progress'))['3blue1brown/r6sGWTCMz2k'].completed)).toBe(false);
+ await page.goto('./#activity/3blue1brown/r6sGWTCMz2k');await expect(page.locator('.activity-verdict')).toContainText('less than 90%');await expect(page.locator('.activity-events')).toContainText('jumped near the end');
+ await page.locator('#language').click();await page.screenshot({path:`/tmp/ctrl-activity-${testInfo.project.name}.png`,fullPage:true});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await page.reload();await expect(page.locator('.activity-card')).toHaveCount(1);
+ await page.locator('#privacy').click();await page.locator('#clear-progress').click();await expect(page.locator('.activity-card')).toHaveCount(0);
+});
