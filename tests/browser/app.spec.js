@@ -1,4 +1,8 @@
 import {test,expect} from '@playwright/test';
+import {readFile} from 'node:fs/promises';
+test.beforeEach(async({page})=>{
+ await page.route('**/data/*.json',async route=>{const name=new URL(route.request().url()).pathname.split('/').pop();const body=await readFile(new URL('../fixtures/'+name,import.meta.url),'utf8');await route.fulfill({contentType:'application/json',body})});
+});
 test('Arabic home, English navigation, subjects, channels, filters and player shell',async({page},testInfo)=>{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto('./');
  await expect(page.locator('html')).toHaveAttribute('dir','rtl');await expect(page.locator('h1')).toHaveText('كل يوم، خطوة جديدة.');

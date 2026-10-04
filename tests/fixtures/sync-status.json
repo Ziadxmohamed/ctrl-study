@@ -1,0 +1,26 @@
+{
+  "demo": true,
+  "status": "demo",
+  "lastAttemptAt": null,
+  "lastSuccessAt": null,
+  "channels": [
+    {
+      "id": "3blue1brown",
+      "status": "demo",
+      "videoCount": 4,
+      "lastSuccessAt": null
+    },
+    {
+      "id": "khan-academy",
+      "status": "demo",
+      "videoCount": 1,
+      "lastSuccessAt": null
+    },
+    {
+      "id": "crash-course",
+      "status": "demo",
+      "videoCount": 1,
+      "lastSuccessAt": null
+    }
+  ]
+}

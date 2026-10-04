@@ -1,0 +1,65 @@
+[
+  {
+    "id": "mathematics",
+    "name": {
+      "en": "Mathematics",
+      "ar": "الرياضيات"
+    },
+    "icon": "∑",
+    "order": 0
+  },
+  {
+    "id": "english",
+    "name": {
+      "en": "English",
+      "ar": "اللغة الإنجليزية"
+    },
+    "icon": "Aa",
+    "order": 1
+  },
+  {
+    "id": "science",
+    "name": {
+      "en": "Science",
+      "ar": "العلوم"
+    },
+    "icon": "⚗",
+    "order": 2
+  },
+  {
+    "id": "arabic",
+    "name": {
+      "en": "Arabic",
+      "ar": "اللغة العربية"
+    },
+    "icon": "ض",
+    "order": 3
+  },
+  {
+    "id": "physics",
+    "name": {
+      "en": "Physics",
+      "ar": "الفيزياء"
+    },
+    "icon": "↗",
+    "order": 4
+  },
+  {
+    "id": "chemistry",
+    "name": {
+      "en": "Chemistry",
+      "ar": "الكيمياء"
+    },
+    "icon": "⚛",
+    "order": 5
+  },
+  {
+    "id": "biology",
+    "name": {
+      "en": "Biology",
+      "ar": "الأحياء"
+    },
+    "icon": "♧",
+    "order": 6
+  }
+]

@@ -60,11 +60,13 @@ export async function synchronize(subjects,config,previous,api,now=new Date().to
   return {channels,videos,status:{demo:false,lastAttemptAt:now,lastSuccessAt:ok?now:previous.status?.lastSuccessAt||null,status:ok?'ok':'partial',channels:results}};
 }
 async function json(name,fallback){try{return JSON.parse(await readFile(resolve(ROOT,'data',name+'.json'),'utf8'))}catch(e){if(e.code==='ENOENT'&&fallback!==undefined)return fallback;throw new Error(`Invalid or missing data/${name}.json`)}}
-async function atomic(name,data){const path=resolve(ROOT,'data',name+'.json');await writeFile(path+'.tmp',JSON.stringify(data,null,2)+'\n');await rename(path+'.tmp',path)}
+async function atomic(name,data){const path=resolve(ROOT,'data',name+'.json');await writeFile(path+'.tmp',JSON.stringify(data,null,name==='videos'?undefined:2)+'\n');await rename(path+'.tmp',path)}
 async function main(){const key=process.env.YOUTUBE_API_KEY;if(!key)throw new Error('Set the YOUTUBE_API_KEY GitHub Secret or environment variable.');
   const subjects=await json('subjects'),config=await json('approved-channels');
   const previous={channels:await json('channels',[]),videos:await json('videos',[]),status:await json('sync-status',{})};
-  const result=await synchronize(subjects,config,previous,createApi(key));
+  const api=createApi(key);let requests=0;
+  const countedApi=async(resource,params)=>{const result=await api(resource,params);if(++requests%50===0)console.log(`Completed ${requests} YouTube list requests.`);return result};
+  const result=await synchronize(subjects,config,previous,countedApi);
   await mkdir(resolve(ROOT,'data'),{recursive:true});await atomic('channels',result.channels);await atomic('videos',result.videos);await atomic('sync-status',result.status);
   console.log(`Synchronized ${result.status.channels.filter(x=>x.status==='ok').length}/${result.status.channels.length} approved channels; ${result.videos.length} videos.`);
   for(const r of result.status.channels.filter(x=>x.status!=='ok'))console.warn(`${r.id}: ${r.error}`);

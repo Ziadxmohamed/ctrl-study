@@ -1,0 +1,32 @@
+[
+  {
+    "id": "3blue1brown",
+    "url": "https://www.youtube.com/@3blue1brown",
+    "subject": "mathematics",
+    "teacher": "Grant Sanderson",
+    "grade": "",
+    "enabled": true,
+    "order": 0,
+    "dateAdded": "2026-10-04T00:00:00Z"
+  },
+  {
+    "id": "khan-academy",
+    "url": "https://www.youtube.com/@khanacademy",
+    "subject": "mathematics",
+    "teacher": "Khan Academy",
+    "grade": "",
+    "enabled": true,
+    "order": 1,
+    "dateAdded": "2026-10-04T00:00:00Z"
+  },
+  {
+    "id": "crash-course",
+    "url": "https://www.youtube.com/@crashcourse",
+    "subject": "chemistry",
+    "teacher": "Crash Course",
+    "grade": "",
+    "enabled": true,
+    "order": 2,
+    "dateAdded": "2026-10-04T00:00:00Z"
+  }
+]

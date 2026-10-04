@@ -196,7 +196,7 @@ npx playwright install chromium
 npm run test:browser
 ```
 
-`npm test` exercises URL parsing, configuration validation, pagination, status verification, unavailable/private videos, duration parsing, retries, quota preservation, channel isolation, changed/disabled approvals and approved-only search. API calls use fixtures; they do not need or expose a key.
+`npm test` exercises URL parsing, configuration validation, pagination, status verification, unavailable/private videos, duration parsing, retries, quota preservation, channel isolation, changed/disabled approvals and approved-only search. API calls use fixtures; they do not need or expose a key. Browser interaction tests use an isolated fixture library so changing approved production channels does not break CI; service-worker tests exercise the real local catalog.
 
 Browser tests use desktop and mobile Chromium with a real HTTP server under `/repository/`. They check Arabic RTL, English LTR, overflow, navigation, subject/channel pages, search, filters, player load/error/progress behavior, empty/error states, admin drafts, PWA assets, and subpath references. Additional service-worker tests verify scoped registration and offline behavior. CI installs Chromium and runs all checks. The sync and data-validation scripts use Node's standard library only. Workflow-syntax tests use the development dependency `yaml`; browser tests use Playwright.
 
