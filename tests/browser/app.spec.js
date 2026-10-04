@@ -110,3 +110,15 @@ test('viewing report counts pauses and large skips without crediting completion'
  await page.reload();await expect(page.locator('.activity-card')).toHaveCount(1);
  await page.locator('#privacy').click();await page.locator('#clear-progress').click();await expect(page.locator('.activity-card')).toHaveCount(0);
 });
+
+test('embedded player sandbox blocks popup and top-page navigation',async({page,context})=>{
+ await page.addInitScript(()=>{window.YT={Player:class{
+  constructor(slot,options){this.options=options;queueMicrotask(()=>options.events.onReady())}
+  getPlayerState(){return 5}getCurrentTime(){return 0}getDuration(){return 100}destroy(){}
+ }}});
+ await page.route('https://www.youtube-nocookie.com/embed/**',route=>route.fulfill({contentType:'text/html',body:`<!doctype html><button id="popup" onclick="document.getElementById('result').textContent=window.open('https://www.youtube.com/watch?v=test','_blank')===null?'blocked':'opened'">YouTube</button><p id="result"></p><a id="top" href="https://www.youtube.com/watch?v=test" target="_top">Open top</a>`}));
+ await page.goto('./#watch/3blue1brown/r6sGWTCMz2k');await page.getByRole('button',{name:'تحميل مشغّل الدرس',exact:true}).count().then(async n=>{if(n)await page.getByRole('button',{name:'تحميل مشغّل الدرس',exact:true}).click();else{await page.locator('#language').click();await page.getByRole('button',{name:'Load lesson player'}).click()}});
+ const iframe=page.locator('#yt-player');await expect(iframe).toHaveAttribute('sandbox','allow-scripts allow-same-origin allow-presentation');
+ const frame=page.frameLocator('#yt-player');await frame.locator('#popup').click();await expect(frame.locator('#result')).toHaveText('blocked');expect(context.pages().length).toBe(1);
+ await frame.locator('#top').click();expect(page.url()).toContain('#watch/3blue1brown/r6sGWTCMz2k');expect(context.pages().length).toBe(1);
+});
