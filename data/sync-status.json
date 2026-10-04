@@ -1,13 +1,14 @@
 {
   "demo": false,
-  "status": "pending",
-  "lastAttemptAt": null,
-  "lastSuccessAt": null,
+  "lastAttemptAt": "2026-10-04T18:41:03.542Z",
+  "lastSuccessAt": "2026-10-04T18:41:03.542Z",
+  "status": "ok",
   "channels": [
     {
       "id": "mohamed-salah",
-      "status": "pending",
-      "lastSuccessAt": null
+      "status": "ok",
+      "videoCount": 640,
+      "lastSuccessAt": "2026-10-04T18:41:03.542Z"
     }
   ]
 }
