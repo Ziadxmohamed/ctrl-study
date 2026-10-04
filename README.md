@@ -60,7 +60,7 @@ The published configuration approves only **محمد صلاح — بسطتهال
 
 All asset, JSON, manifest, worker and administration paths are relative. Browser tests serve at `/repository/`, rather than `/`, to verify project-site hosting. Custom domains also work.
 
-Generated commits use `GITHUB_TOKEN`; these commits do not trigger ordinary push workflows. The explicit `workflow_run` trigger deploys after a successful sync, checking the workflow's branch and conclusion. It checks out `main` and never executes an artifact from the triggering workflow. Branch protection that rejects bot pushes will cause synchronization to fail at `git push`; choose a permitted dedicated publishing branch and update workflows, or have a repository administrator integrate the generated changes. Do not bypass protection by exposing a personal token.
+Generated commits use `GITHUB_TOKEN`; these commits do not trigger ordinary push workflows. The explicit `workflow_run` trigger deploys after a successful sync or channel-add workflow, checking the workflow's branch and conclusion. It checks out `main` and never executes an artifact from the triggering workflow. Branch protection that rejects bot pushes will cause synchronization to fail at `git push`; choose a permitted dedicated publishing branch and update workflows, or have a repository administrator integrate the generated changes. Do not bypass protection by exposing a personal token.
 
 ## Create and store the YouTube API key
 
@@ -84,7 +84,23 @@ Use API metrics/quotas in Google Cloud to monitor usage. Public channel metadata
 
 ## Administrator workflow
 
-Visit `https://USERNAME.github.io/ctrl-study/admin/` (or `/admin/` locally). This is a **public draft editor**, not authentication. Anyone can draft files, but only an authorized GitHub account can publish them. It never asks for an API key, GitHub token, or fake admin password. Drafts live only in the current tab and are lost on reload unless exported.
+### Add a channel and publish without editing JSON
+
+Use **Add approved channel** in GitHub Actions. The admin page has an Arabic button linking to it.
+
+1. Open `https://github.com/Ziadxmohamed/ctrl-study/actions/workflows/add-channel.yml` and sign in to the GitHub account authorized to write to the repository.
+2. Click **Run workflow**, select `main`, and enter the YouTube channel URL.
+3. Set the subject ID: `arabic`, `mathematics`, `english`, `science`, `physics`, `chemistry`, or `biology` for the provided subjects. Newly configured subject IDs are also supported. The default is `arabic`.
+4. Teacher name and grade are optional. An omitted teacher name defaults to the resolved channel name, or preserves an existing custom teacher name.
+5. Click **Run workflow**. The workflow resolves the channel, saves its approval, synchronizes lessons, commits the configuration/data, and automatically deploys the site. Wait for the **Add approved channel** and subsequent **Deploy CTRL Study** runs to finish successfully, then reload the student page.
+
+The existing `YOUTUBE_API_KEY` secret is reused. No credential is entered on the public admin page. Adding an existing normalized URL updates its subject, optional grade and teacher, preserves its ID/date/order, and re-enables it without duplication. An empty grade clears the grade. Invalid URLs, unknown subjects and unresolved channels fail without publishing. If the requested channel cannot synchronize, no configuration change is committed; inspect the workflow error and retry. A valid channel with no public embeddable uploads can appear with zero lessons.
+
+This workflow and the scheduled synchronization share one concurrency group and check out the latest `main` after acquiring it. Simultaneous manual edits can still cause a rejected Git push; review the latest configuration and retry rather than overriding another administrator's changes.
+
+### Draft editor for advanced configuration
+
+Visit `https://USERNAME.github.io/ctrl-study/admin/` (or `/admin/` locally). This is a **public draft editor**, not authentication. Anyone can draft files, but only an authorized GitHub account can publish them. It never asks for an API key, GitHub token, or fake admin password. Its Arabic GitHub button opens the authenticated publishing workflow; the JSON forms below it remain drafts. Drafts live only in the current tab and are lost on reload unless exported.
 
 1. Add a channel URL, subject, teacher name and optional grade.
 2. Edit, disable, enable, delete, or move channels up/down. Manage subject names/icons and order in the same editor. A subject in use cannot be deleted until its channels are reassigned or removed.
@@ -92,7 +108,7 @@ Visit `https://USERNAME.github.io/ctrl-study/admin/` (or `/admin/` locally). Thi
 4. In GitHub, replace `data/subjects.json` and `data/approved-channels.json` with the exported files. Commit together to `main` using GitHub's upload-files page or a reviewed pull request.
 5. Run **Sync YouTube channels**. Channel name, ID, thumbnail and lessons are populated automatically. View the sync status in the editor after deployment.
 
-You can also edit JSON directly using GitHub's authenticated file editor. The browser editor does not write to GitHub. Secure remote writes would require an authenticated backend or GitHub App and are intentionally outside this static architecture. For multiple administrators, use branch protection and pull-request review. GitHub workflow dispatch is already authenticated by GitHub.
+You can also edit JSON directly using GitHub's authenticated file editor. The browser editor does not write to GitHub. Direct write-back from the public browser editor would require an authenticated backend or GitHub App. The native GitHub workflow above provides authenticated remote publication without storing credentials in the browser. For multiple administrators, use branch protection and pull-request review. GitHub workflow dispatch is already authenticated by GitHub.
 
 ### Supported channel URLs
 
@@ -216,7 +232,7 @@ data/videos.json           generated approved-channel lessons
 data/sync-status.json      generated diagnostics (demo marker initially)
 admin/                     public draft editor / JSON import-export
 scripts/                   dependency-free sync, validation, test server
-.github/workflows/         sync, Pages deployment, CI checks
+.github/workflows/         sync, channel registration, Pages deployment, CI checks
 tests/                     Node unit tests and Playwright browser tests
 manifest.json              relative PWA configuration
 service-worker.js          shell caching, no video/catalog cache

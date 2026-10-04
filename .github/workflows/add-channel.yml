@@ -1,0 +1,74 @@
+name: Add approved channel
+on:
+  workflow_dispatch:
+    inputs:
+      channel_url:
+        description: 'YouTube channel URL / رابط القناة'
+        required: true
+        type: string
+      subject:
+        description: 'Subject ID / arabic, mathematics, english, science, physics, chemistry, biology'
+        required: true
+        default: arabic
+        type: string
+      teacher:
+        description: 'Teacher name (optional; defaults to channel name) / اسم المدرس اختياري'
+        required: false
+        type: string
+      grade:
+        description: 'Grade/year (optional) / الصف اختياري'
+        required: false
+        type: string
+permissions:
+  contents: write
+concurrency:
+  group: ctrl-study-sync
+  cancel-in-progress: false
+jobs:
+  add:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts
+      - run: npm test
+      - name: Resolve and approve the channel
+        id: registration
+        run: node scripts/add-channel.mjs
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          CTRL_CHANNEL_URL: ${{ inputs.channel_url }}
+          CTRL_SUBJECT: ${{ inputs.subject }}
+          CTRL_TEACHER: ${{ inputs.teacher }}
+          CTRL_GRADE: ${{ inputs.grade }}
+      - name: Synchronize approved lessons
+        run: npm run sync
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+      - name: Confirm the requested channel synchronized
+        run: |
+          node --input-type=module <<'JS'
+          import {readFile} from 'node:fs/promises';
+          const status=JSON.parse(await readFile('data/sync-status.json','utf8'));
+          const channel=status.channels.find(c=>c.id===process.env.ADDED_CHANNEL_ID);
+          if(channel?.status!=='ok')throw new Error('The channel could not synchronize: '+(channel?.error||'unknownFailure'));
+          console.log('Requested channel synchronized:',channel.videoCount,'videos.');
+          JS
+        env:
+          ADDED_CHANNEL_ID: ${{ steps.registration.outputs.channel_key }}
+      - run: npm run validate
+      - name: Publish configuration and generated library
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/approved-channels.json data/channels.json data/videos.json data/sync-status.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Approve channel and synchronize lesson library"
+            git push
+          fi

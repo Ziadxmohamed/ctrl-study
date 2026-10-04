@@ -29,9 +29,9 @@ test('disabled and changed approvals hide videos even with stale generated data'
  await page.route('**/data/approved-channels.json',async route=>{const items=JSON.parse(await readFile(new URL('../fixtures/approved-channels.json',import.meta.url),'utf8'));items[0].enabled=false;items[1].url='https://www.youtube.com/@changed';await route.fulfill({json:items})});await page.goto('./#latest');await expect(page.locator('.video-card')).toHaveCount(1);
 });
 test('public manager edits config and reports invalid channel URLs',async({page})=>{
- await page.goto('./admin/');await expect(page.locator('#channel-list .admin-row')).toHaveCount(3);
- await page.locator('#url').fill('https://evil.com/@teacher');await page.locator('#teacher').fill('New Teacher');await page.getByRole('button',{name:'Add channel',exact:true}).click();await expect(page.locator('#message')).toContainText('valid HTTPS');
- await page.locator('#url').fill('youtube.com/@newteacher');await page.getByRole('button',{name:'Add channel',exact:true}).click();await expect(page.locator('#channel-list .admin-row')).toHaveCount(4);await expect(page.locator('#message')).toContainText('saved to draft');
+ await page.goto('./admin/');await expect(page.locator('#channel-list .admin-row')).toHaveCount(3);await expect(page.locator('#github-add-channel')).toHaveAttribute('href',/actions\/workflows\/add-channel\.yml$/);
+ await page.locator('#url').fill('https://evil.com/@teacher');await page.locator('#teacher').fill('New Teacher');await page.getByRole('button',{name:'Add to draft / إضافة لمسودة',exact:true}).click();await expect(page.locator('#message')).toContainText('valid HTTPS');
+ await page.locator('#url').fill('youtube.com/@newteacher');await page.getByRole('button',{name:'Add to draft / إضافة لمسودة',exact:true}).click();await expect(page.locator('#channel-list .admin-row')).toHaveCount(4);await expect(page.locator('#message')).toContainText('saved to draft');
  const row=page.locator('#channel-list .admin-row').last();await row.getByRole('button',{name:'Disable',exact:true}).click();await expect(row).toContainText('Disabled');
 });
 test('manifest and service-worker registration use repository-relative paths',async({page,request})=>{
