@@ -1,0 +1,11 @@
+import {readFile} from 'node:fs/promises';
+import {validateConfig,VIDEO_ID,approvedVideos} from '../assets/js/model.js';
+const read=async name=>JSON.parse(await readFile(new URL(`../data/${name}.json`,import.meta.url),'utf8'));
+const [subjects,config,channels,videos,status]=await Promise.all(['subjects','approved-channels','channels','videos','sync-status'].map(read));
+validateConfig(subjects,config);
+if(!Array.isArray(channels)||!Array.isArray(videos)||!Array.isArray(status.channels))throw new Error('Malformed generated library');
+for(const v of videos)if(!VIDEO_ID.test(v.id)||typeof v.title!=='string'||!Number.isFinite(Date.parse(v.publishedAt)))throw new Error('Invalid generated video');
+const manifest=JSON.parse(await readFile(new URL('../manifest.json',import.meta.url),'utf8'));
+for(const icon of manifest.icons)await readFile(new URL('../'+icon.src,import.meta.url));
+if(manifest.start_url!=='./'||manifest.scope!=='./')throw new Error('Use relative PWA paths');
+console.log(`Valid library: ${subjects.length} subjects, ${config.length} configured channels, ${approvedVideos(subjects,config,channels,videos).length} approved videos. PWA assets valid.`);
