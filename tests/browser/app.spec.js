@@ -1,7 +1,7 @@
 import {test,expect} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
 test.beforeEach(async({page})=>{
- await page.route('**/data/*.json',async route=>{const name=new URL(route.request().url()).pathname.split('/').pop();const body=await readFile(new URL('../fixtures/'+name,import.meta.url),'utf8');await route.fulfill({contentType:'application/json',body})});
+ await page.route('**/data/*.json*',async route=>{const name=new URL(route.request().url()).pathname.split('/').pop();const body=await readFile(new URL('../fixtures/'+name,import.meta.url),'utf8');await route.fulfill({contentType:'application/json',body})});
 });
 test('Arabic home, English navigation, subjects, channels, filters and player shell',async({page},testInfo)=>{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto('./');
@@ -28,11 +28,12 @@ test('library failures and malformed JSON have retry state',async({page})=>{
 test('disabled and changed approvals hide videos even with stale generated data',async({page})=>{
  await page.route('**/data/approved-channels.json',async route=>{const items=JSON.parse(await readFile(new URL('../fixtures/approved-channels.json',import.meta.url),'utf8'));items[0].enabled=false;items[1].url='https://www.youtube.com/@changed';await route.fulfill({json:items})});await page.goto('./#latest');await expect(page.locator('.video-card')).toHaveCount(1);
 });
-test('public manager edits config and reports invalid channel URLs',async({page})=>{
- await page.goto('./admin/');await expect(page.locator('#channel-list .admin-row')).toHaveCount(3);await expect(page.locator('#github-add-channel')).toHaveAttribute('href',/actions\/workflows\/add-channel\.yml$/);
- await page.locator('#url').fill('https://evil.com/@teacher');await page.locator('#teacher').fill('New Teacher');await page.getByRole('button',{name:'Add to draft / إضافة لمسودة',exact:true}).click();await expect(page.locator('#message')).toContainText('valid HTTPS');
- await page.locator('#url').fill('youtube.com/@newteacher');await page.getByRole('button',{name:'Add to draft / إضافة لمسودة',exact:true}).click();await expect(page.locator('#channel-list .admin-row')).toHaveCount(4);await expect(page.locator('#message')).toContainText('saved to draft');
- const row=page.locator('#channel-list .admin-row').last();await row.getByRole('button',{name:'Disable',exact:true}).click();await expect(row).toContainText('Disabled');
+test('manager shows published channels without developer links',async({page},testInfo)=>{
+ await page.goto('./admin/');await expect(page.locator('#channel-list .admin-row')).toHaveCount(3);
+ await expect(page.locator('#publish-channel')).toBeDisabled();
+ expect(await page.locator('body').innerText()).not.toMatch(/GitHub|workflow|JSON/i);
+ await page.screenshot({path:`/tmp/ctrl-admin-${testInfo.project.name}.png`,fullPage:true});
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
 test('manifest and service-worker registration use repository-relative paths',async({page,request})=>{
  await page.goto('./');const manifest=await (await request.get('./manifest.json')).json();expect(manifest.start_url).toBe('./');for(const icon of manifest.icons)expect((await request.get('./'+icon.src)).ok()).toBe(true);
@@ -57,3 +58,40 @@ test('PWA registers under repository scope and serves only cached shell offline'
  const cached=await page.evaluate(async()=>{const entries=await Promise.all((await caches.keys()).map(async k=>(await (await caches.open(k)).keys()).map(r=>r.url)));return entries.flat()});expect(cached.every(u=>!u.includes('/data/')&&!u.includes('youtube'))).toBe(true);
  await context.close();
 });
+
+test('admin remembers credentials and clears them on logout',async({page})=>{
+ await page.route('https://api.github.com/**',route=>route.fulfill({json:{state:'active'}}));
+ await page.goto('./admin/');await page.locator('#publish-token').fill('fixture-token');await page.locator('#save-login').click();
+ await expect(page.locator('#login-message')).toContainText('تم حفظ الدخول');
+ await page.reload();await expect(page.locator('#publish-token')).toHaveValue('fixture-token');
+ await page.locator('#logout').click();await expect(page.locator('#publish-token')).toHaveValue('');
+ expect(await page.evaluate(()=>localStorage.getItem('ctrl-admin-credential'))).toBeNull();
+});
+
+test('publish spinner lasts through sync and confirms only deployed lessons',async({page})=>{
+ let release;const gate=new Promise(resolve=>release=resolve);let published=false;
+ await page.route('https://api.github.com/**/dispatches',route=>route.fulfill({json:{workflow_run_id:123}}));
+ await page.route('https://api.github.com/**/actions/runs/123',async route=>{await gate;published=true;await route.fulfill({json:{status:'completed',conclusion:'success'}})});
+ await page.route('**/data/*.json*',async route=>{
+  const file=new URL(route.request().url()).pathname.split('/').pop();const data=JSON.parse(await readFile(new URL('../fixtures/'+file,import.meta.url),'utf8'));
+  if(published){
+   if(file==='approved-channels.json')data.push({id:'newteacher',url:'https://www.youtube.com/@newteacher',subject:'arabic',teacher:'New Teacher',grade:'',enabled:true,order:4,dateAdded:new Date().toISOString()});
+   if(file==='channels.json')data.push({id:'newteacher',channelId:'UCtest',sourceUrl:'https://www.youtube.com/@newteacher',status:'ok'});
+   if(file==='sync-status.json')data.channels.push({id:'newteacher',status:'ok',videoCount:1,lastSuccessAt:new Date().toISOString()});
+   if(file==='videos.json')data.push({id:'abcdefghijk',channelKey:'newteacher',channelId:'UCtest'});
+  }
+  await route.fulfill({json:data});
+ });
+ await page.goto('./admin/');await page.locator('#publish-token').fill('fixture-token');await page.locator('#publish-url').fill('youtube.com/@newteacher');await page.locator('#publish-subject').selectOption('arabic');await page.locator('#publish-channel').click();
+ await expect(page.locator('#publish-spinner')).toBeVisible();await expect(page.locator('#publish-channel')).toBeDisabled();
+ await expect(page.locator('#publish-status')).not.toContainText('تم كل شيء');
+ release();await expect(page.locator('#publish-status')).toContainText('تم كل شيء بنجاح');await expect(page.locator('#publish-status')).toContainText('1 درس');await expect(page.locator('#publish-spinner')).toBeHidden();await expect(page.locator('#view-channel')).toHaveAttribute('href','../#channel/newteacher');
+});
+
+test('failed publishing stops spinner and never reports success',async({page})=>{
+ await page.route('https://api.github.com/**/dispatches',route=>route.fulfill({json:{workflow_run_id:123}}));
+ await page.route('https://api.github.com/**/actions/runs/123',route=>route.fulfill({json:{status:'completed',conclusion:'failure'}}));
+ await page.goto('./admin/');await page.locator('#publish-token').fill('fixture-token');await page.locator('#publish-url').fill('youtube.com/@badteacher');await page.locator('#publish-channel').click();
+ await expect(page.locator('#publish-status')).toContainText('لم تكتمل');await expect(page.locator('#publish-spinner')).toBeHidden();await expect(page.locator('#view-channel')).toBeHidden();await expect(page.locator('#publish-channel')).toBeEnabled();
+});
+

@@ -1,48 +1,57 @@
 import {validateConfig,parseChannelUrl} from '../assets/js/model.js';
-const $=id=>document.getElementById(id);let subjects=[],channels=[],editing=null,editingSubject=null,ready=false,publishedSubjects=[];
-function node(tag,text){const n=document.createElement(tag);if(text)n.textContent=text;return n}
-function action(text,fn){const b=node('button',text);b.type='button';b.onclick=fn;return b}
-function message(text){$('message').textContent=text;$('message').className='notice'}
-function move(items,index,delta){const to=index+delta;if(to<0||to>=items.length)return;[items[index],items[to]]=[items[to],items[index]];items.forEach((c,i)=>c.order=i);render()}
-function reset(){editing=null;$('channel-form').reset();$('save-channel').textContent='Add to draft / إضافة لمسودة';$('cancel-edit').hidden=true}
-function resetSubject(){editingSubject=null;$('subject-form').reset();$('subject-id').disabled=false;$('save-subject').textContent='Add subject';$('cancel-subject').hidden=true}
-function render(){const selected=$('subject').value;$('subject').replaceChildren();subjects.forEach(s=>{const o=node('option',s.name.en+' / '+s.name.ar);o.value=s.id;$('subject').append(o)});$('subject').value=subjects.some(s=>s.id===selected)?selected:subjects[0]?.id||'';
-$('channel-list').replaceChildren();channels.forEach((c,i)=>{const row=node('div');row.className='admin-row';const copy=node('div');copy.className='row-text';copy.append(node('strong',c.teacher),node('small',`${c.url} · ${c.subject} · ${c.grade||'All grades'} · ${c.enabled?'Enabled':'Disabled'}`));row.append(copy,action('Edit',()=>{editing=c.id;for(const key of ['url','subject','teacher','grade','enabled'])$(key).value=String(c[key]??'');$('save-channel').textContent='Save changes';$('cancel-edit').hidden=false;$('url').focus();$('channel-form').scrollIntoView({block:'center'})}),action(c.enabled?'Disable':'Enable',()=>{c.enabled=!c.enabled;render();message('Draft updated. Export and commit to publish.')}),action('↑',()=>move(channels,i,-1)),action('↓',()=>move(channels,i,1)),action('Delete',()=>{if(confirm(`Remove ${c.teacher} from this draft?`)){channels.splice(i,1);if(editing===c.id)reset();render()}}));$('channel-list').append(row)});
-$('subject-list').replaceChildren();subjects.forEach((s,i)=>{const row=node('div');row.className='admin-row';const copy=node('div');copy.className='row-text';copy.append(node('strong',`${s.icon||'▤'} ${s.name.en} / ${s.name.ar}`),node('small',s.id));row.append(copy,action('Edit',()=>{editingSubject=s.id;$('subject-id').value=s.id;$('subject-id').disabled=true;$('subject-icon').value=s.icon||'';$('subject-en').value=s.name.en;$('subject-ar').value=s.name.ar;$('save-subject').textContent='Save subject';$('cancel-subject').hidden=false;$('subject-en').focus()}),action('↑',()=>move(subjects,i,-1)),action('↓',()=>move(subjects,i,1)),action('Delete',()=>{if(channels.some(c=>c.subject===s.id))return message('Reassign or delete this subject’s channels first.');if(confirm(`Remove ${s.name.en}?`)){subjects.splice(i,1);if(editingSubject===s.id)resetSubject();render()}}));$('subject-list').append(row)})}
-$('cancel-edit').onclick=reset;$('cancel-subject').onclick=resetSubject;
-$('channel-form').onsubmit=e=>{e.preventDefault();if(!ready)return;try{const url=parseChannelUrl($('url').value.trim()).url;const existing=channels.find(c=>c.id===editing);const c={id:editing||crypto.randomUUID(),url,subject:$('subject').value,teacher:$('teacher').value.trim(),grade:$('grade').value.trim(),enabled:$('enabled').value==='true',order:existing?.order??channels.length,dateAdded:existing?.dateAdded??new Date().toISOString()};const next=editing?channels.map(x=>x.id===editing?c:x):[...channels,c];validateConfig(subjects,next);channels=next;reset();render();message('Channel saved to draft only — not published. / القناة محفوظة كمسودة فقط ولم تُنشر. استخدم نموذج إضافة قناة من هنا للنشر المباشر، أو صدّر الملفات وارفعها للمستودع.')}catch(e){message(e.message)}};
-$('subject-form').onsubmit=e=>{e.preventDefault();if(!ready)return;try{const s={id:$('subject-id').value.trim(),name:{en:$('subject-en').value.trim(),ar:$('subject-ar').value.trim()},icon:$('subject-icon').value.trim()||'▤',order:subjects.find(s=>s.id===editingSubject)?.order??subjects.length};const next=editingSubject?subjects.map(x=>x.id===editingSubject?s:x):[...subjects,s];validateConfig(next,channels);subjects=next;resetSubject();render();message('Subject saved to draft.')}catch(e){message(e.message)}};
-function download(filename,data){const a=node('a');const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)+'\n'],{type:'application/json'}));a.href=url;a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
-$('export').onclick=()=>{if(!ready)return;try{validateConfig(subjects,channels);download('subjects.json',subjects);download('approved-channels.json',channels);message('Configuration exported. Your browser may ask permission for multiple downloads. Commit both files into data/ to publish.')}catch(e){message(e.message)}};
-for(const [id,type]of [['import-subjects','subjects'],['import-channels','channels']])$(id).onchange=async e=>{try{const file=e.target.files[0];if(!file)return;if(file.size>1000000)throw new Error('Configuration file is too large.');const data=JSON.parse(await file.text());validateConfig(type==='subjects'?data:subjects,type==='channels'?data:channels);if(type==='subjects')subjects=data;else channels=data;reset();resetSubject();render();message('Imported into draft. Export and commit to publish.')}catch(e){message(e.message)}finally{e.target.value=''}};
-async function load(){try{const fetchJson=async file=>{const r=await fetch('../data/'+file+'.json',{cache:'no-cache'});if(!r.ok)throw new Error('Could not load configuration.');return r.json()};[subjects,channels]=await Promise.all([fetchJson('subjects'),fetchJson('approved-channels')]);validateConfig(subjects,channels);channels.sort((a,b)=>a.order-b.order);ready=true;publishedSubjects=subjects.map(s=>({...s}));publishedSubjects.forEach(s=>{const o=node('option',s.name.ar+' / '+s.name.en);o.value=s.id;$('publish-subject').append(o)});$('publish-channel').disabled=false;render();try{const status=await fetchJson('sync-status');showSyncStatus(status)}catch{$('sync-status').textContent='Sync status unavailable.'}}catch(e){message(e.message);$('sync-status').textContent='Configuration unavailable. Fix the JSON in GitHub and reload.'}}
-load();
-
-if(location.hostname.endsWith('.github.io')){const owner=location.hostname.slice(0,-'.github.io'.length);const root=new URL('../',location.href);const repo=root.pathname.split('/').filter(Boolean)[0]||owner+'.github.io';$('github-add-channel').href=`https://github.com/${owner}/${repo}/actions/workflows/add-channel.yml`;}
-
-let publishing=false;
-$('publish-form').onsubmit=async e=>{
- e.preventDefault();if(!ready||publishing)return;
- const status=$('publish-status');
- try{
-  const url=parseChannelUrl($('publish-url').value.trim()).url;
-  if(!publishedSubjects.some(s=>s.id===$('publish-subject').value))throw new Error('المادة غير منشورة بعد.');
-  const workflow=new URL($('github-add-channel').href);
-  const [owner,repo]=workflow.pathname.split('/').filter(Boolean);
-  if(!/^[\w-]+$/.test(owner)||! /^[\w.-]+$/.test(repo))throw new Error('Invalid repository');
-  publishing=true;$('publish-channel').disabled=true;status.textContent='جاري إرسال طلب النشر…';
-  const response=await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/workflows/add-channel.yml/dispatches`,{method:'POST',headers:{Accept:'application/vnd.github+json',Authorization:`Bearer ${$('publish-token').value.trim()}`,'X-GitHub-Api-Version':'2022-11-28'},body:JSON.stringify({ref:'main',inputs:{channel_url:url,subject:$('publish-subject').value,teacher:$('publish-teacher').value.trim(),grade:$('publish-grade').value.trim()}}),signal:AbortSignal.timeout(20000)});
-  if(!response.ok){const errors={401:'مفتاح الإدارة غير صالح أو انتهت صلاحيته.',403:'المفتاح يحتاج صلاحية Actions: Read and write لهذا المستودع.',404:'تحقق من صلاحية المفتاح وأن تحديث إضافة القنوات منشور في المستودع.',422:'تعذر بدء النشر. تحقق من وجود workflow الإضافة على فرع main.'};throw new Error(errors[response.status]||'تعذر إرسال طلب النشر. حاول مرة أخرى.');}
-  status.textContent='تم إرسال طلب النشر، وليس تأكيد اكتماله. انتظر المزامنة ثم حدّث الموقع. إذا لم تظهر القناة، راجع سجل التنفيذ من الرابط أدناه.';
-  const a=node('a',' متابعة نتيجة النشر');a.href=$('github-add-channel').href;a.target='_blank';a.rel='noopener';status.append(a);
- }catch(error){status.textContent=error.name==='TimeoutError'?'انتهت مهلة الاتصال؛ قد يكون الطلب وصل. تحقق من نتيجة النشر قبل إعادة المحاولة.':error instanceof TypeError?'تعذر الاتصال بـ GitHub. تحقق من الإنترنت.':error.message;}
- finally{publishing=false;$('publish-channel').disabled=false;}
-};
-
-function showSyncStatus(status){
- const labels={ok:'تمت المزامنة',partial:'مزامنة جزئية',error:'فشلت المزامنة'};
- const last=status.lastSuccessAt?new Intl.DateTimeFormat('ar-EG',{dateStyle:'medium',timeStyle:'short',timeZone:'Africa/Cairo'}).format(new Date(status.lastSuccessAt)):'لا توجد مزامنة ناجحة';
- $('sync-status').textContent=`الحالة: ${labels[status.status]||status.status}\nآخر نجاح بتوقيت القاهرة: ${last}`;
- for(const channel of status.channels||[])$('sync-status').append(node('p',`${channel.id}: ${labels[channel.status]||channel.status} · ${channel.videoCount??0} درس${channel.error?' · '+channel.error:''}`));
+const $=id=>document.getElementById(id);
+const credentialKey='ctrl-admin-credential';
+let ready=false,busy=false,subjects=[];
+const owner=location.hostname.endsWith('.github.io')?location.hostname.slice(0,-10):'Ziadxmohamed';
+const repo=location.hostname.endsWith('.github.io')?new URL('../',location.href).pathname.split('/').filter(Boolean)[0]||owner+'.github.io':'ctrl-study';
+const apiBase=`https://api.github.com/repos/${owner}/${repo}/`;
+function node(tag,text){const n=document.createElement(tag);n.textContent=text;return n}
+function credential(){return $('publish-token').value.trim()}
+function stored(){try{return localStorage.getItem(credentialKey)||''}catch{return ''}}
+function forget(){try{localStorage.removeItem(credentialKey)}catch{}}
+function loginState(){const connected=Boolean(credential());$('login-state').textContent=connected?'رمز الدخول موجود':'غير متصل';$('logout').hidden=!connected;$('publish-channel').disabled=!ready||busy||!connected;}
+$('publish-token').value=stored();loginState();
+$('publish-token').addEventListener('input',loginState);
+function remember(){if($('remember-token').checked){try{localStorage.setItem(credentialKey,credential());return true}catch{$('login-message').textContent='المتصفح منع حفظ الدخول؛ يمكنك استخدام الرمز في هذه الصفحة فقط.';return false}}forget();return false}
+function result(kind,title,copy){$('publish-status').hidden=false;$('publish-status').dataset.kind=kind;$('publish-spinner').hidden=kind!=='busy';$('publish-status-title').textContent=title;$('publish-status-copy').textContent=copy;$('view-channel').hidden=true;$('publish-form').setAttribute('aria-busy',String(kind==='busy'))}
+async function api(path,token,body){
+ const response=await fetch(apiBase+path,{method:body?'POST':'GET',headers:{Accept:'application/vnd.github+json',Authorization:`Bearer ${token}`,'X-GitHub-Api-Version':'2026-03-10'},...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(20000)});
+ if(!response.ok){const errors={401:'رمز الدخول غير صالح أو انتهت صلاحيته. أدخل رمزًا صالحًا.',403:'رمز الدخول لا يملك صلاحية النشر. يلزم تعديل صلاحيات رمز الإدارة.',404:'تعذر الوصول لخدمة النشر بهذا الرمز.',422:'تعذر بدء الإضافة. تحقق من إعداد خدمة النشر.'};throw new Error(errors[response.status]||'خدمة النشر غير متاحة الآن. حاول لاحقًا.');}
+ return response.status===204?null:response.json();
 }
-$('refresh-status').onclick=async()=>{try{const response=await fetch('../data/sync-status.json',{cache:'no-store'});if(!response.ok)throw new Error();showSyncStatus(await response.json())}catch{$('sync-status').textContent='تعذر تحديث الحالة. حاول مرة أخرى.'}};
+async function json(file){const r=await fetch(`../data/${file}.json?check=${Date.now()}`,{cache:'no-store',signal:AbortSignal.timeout(15000)});if(!r.ok)throw new Error('تعذر تحميل المكتبة.');return r.json()}
+$('login-form').onsubmit=async e=>{e.preventDefault();if(busy)return;$('save-login').disabled=true;$('login-message').textContent='جاري التحقق من رمز الدخول…';try{await api('actions/workflows/add-channel.yml',credential());const saved=remember();$('login-message').textContent=saved?'تم حفظ الدخول على هذا الجهاز. يمكنك الآن إضافة القنوات.':'تم الاتصال. يمكنك الآن إضافة القنوات من هذه الصفحة.';loginState()}catch(e){$('login-message').textContent=e.message}finally{$('save-login').disabled=false}};
+$('logout').onclick=()=>{if(busy)return;forget();$('publish-token').value='';$('login-message').textContent='تم تسجيل الخروج ومسح رمز الدخول المحفوظ.';loginState()};
+function showChannels(channels){$('channel-list').replaceChildren();for(const c of channels.filter(c=>c.enabled)){const row=node('div','');row.className='admin-row';const copy=node('div','');copy.className='row-text';copy.append(node('strong',c.teacher),node('small',subjects.find(s=>s.id===c.subject)?.name.ar||c.subject));const a=node('a','فتح الدروس');a.className='secondary';a.href='../#channel/'+c.id;row.append(copy,a);$('channel-list').append(row)}if(!$('channel-list').children.length)$('channel-list').append(node('p','لا توجد قنوات منشورة بعد.'))}
+function showStatus(status){const labels={ok:'تمت المزامنة',partial:'مزامنة جزئية',error:'فشلت المزامنة'};const last=status.lastSuccessAt?new Intl.DateTimeFormat('ar-EG',{dateStyle:'medium',timeStyle:'short',timeZone:'Africa/Cairo'}).format(new Date(status.lastSuccessAt)):'لا توجد مزامنة ناجحة';$('sync-status').textContent=`الحالة: ${labels[status.status]||'غير متاحة'}\nآخر نجاح بتوقيت القاهرة: ${last}`;}
+async function load(){try{const [s,c,status]=await Promise.all([json('subjects'),json('approved-channels'),json('sync-status')]);validateConfig(s,c);subjects=s;$('publish-subject').replaceChildren(...s.map(s=>{const o=node('option',s.name.ar);o.value=s.id;return o}));showChannels(c);showStatus(status);ready=true;loginState()}catch{$('sync-status').textContent='تعذر تحميل المكتبة؛ حدّث الصفحة وحاول مرة أخرى.'}}
+const delay=()=>new Promise(resolve=>setTimeout(resolve,5000));
+async function monitor(runId,token,input,started){
+ const deadline=Date.now()+35*60*1000;
+ let completed=false;
+ while(Date.now()<deadline){
+  if(!completed){const run=await api('actions/runs/'+runId,token);if(run.status==='completed'){if(run.conclusion!=='success')throw new Error('لم تكتمل إضافة القناة. تحقق من رابط القناة، أو جرّب لاحقًا.');completed=true;result('busy','جاري نشر الدروس…','اكتملت المزامنة. نتحقق الآن من ظهور القناة على الموقع.');}else result('busy',run.status==='queued'?'طلبك في الانتظار…':'جاري إضافة القناة ومزامنة الدروس…','العملية قد تستغرق عدة دقائق. اترك الصفحة مفتوحة.');}
+  if(completed){try{const [config,status,resolved,lessons]=await Promise.all(['approved-channels','sync-status','channels','videos'].map(json));const c=config.find(c=>parseChannelUrl(c.url).url===input.url&&c.subject===input.subject&&c.enabled&&(!input.teacher||c.teacher===input.teacher)&&c.grade===input.grade);const sync=status.channels?.find(s=>s.id===c?.id);const metadata=resolved.find(r=>r.id===c?.id);if(c&&sync?.status==='ok'&&Date.parse(sync.lastSuccessAt)>=started&&metadata?.sourceUrl===input.url){const count=lessons.filter(v=>v.channelKey===c.id&&v.channelId===metadata.channelId).length;if(count===sync.videoCount){showChannels(config);showStatus(status);return {id:c.id,count};}}}catch{/* A deployment may briefly serve different revisions; keep checking. */}}
+  await delay();
+ }
+ throw new Error('المتابعة استغرقت وقتًا أطول من المتوقع. لا يعني ذلك فشل الإضافة؛ تحقق من الدروس قبل إعادة المحاولة.');
+}
+$('publish-form').onsubmit=async e=>{
+ e.preventDefault();if(!ready||busy)return;
+ const token=credential();if(!token){$('login-message').textContent='أدخل رمز الإدارة أولًا.';return;}
+ try{
+  const input={url:parseChannelUrl($('publish-url').value.trim()).url,subject:$('publish-subject').value,teacher:$('publish-teacher').value.trim(),grade:$('publish-grade').value.trim()};
+  busy=true;loginState();$('logout').disabled=true;$('save-login').disabled=true;$('publish-token').disabled=true;remember();
+  result('busy','جاري إرسال طلب الإضافة…','سنخبرك هنا عندما تكتمل المزامنة والنشر.');
+  const started=Date.now();
+  const dispatch=await api('actions/workflows/add-channel.yml/dispatches',token,{ref:'main',inputs:{channel_url:input.url,subject:input.subject,teacher:input.teacher,grade:input.grade}});
+  if(!dispatch?.workflow_run_id)throw new Error('تم إرسال الطلب، لكن تعذرت متابعته. تحقق من ظهور الدروس قبل إعادة المحاولة.');
+  const done=await monitor(dispatch.workflow_run_id,token,input,started);
+  result('success','✓ تم كل شيء بنجاح',`تمت إضافة القناة ومزامنة ${done.count} درس ونشرها على الموقع.${done.count===0?' لا توجد فيديوهات قابلة للنشر في القناة حاليًا.':''}`);
+  $('view-channel').href='../#channel/'+done.id;$('view-channel').hidden=false;
+ }catch(e){result('error','تعذّر إكمال العملية',e.name==='TimeoutError'?'انتهت مهلة الاتصال. قد يكون الطلب مستمرًا؛ تحقق من الدروس قبل إعادة المحاولة.':e instanceof TypeError?'انقطع الاتصال. قد يستمر النشر؛ تحقق من الدروس قبل إعادة المحاولة.':e.message)}
+ finally{busy=false;$('logout').disabled=false;$('save-login').disabled=false;$('publish-token').disabled=false;loginState()}
+};
+$('refresh-status').onclick=async()=>{try{showStatus(await json('sync-status'))}catch{$('sync-status').textContent='تعذر تحديث الحالة. حاول مرة أخرى.'}};
+window.addEventListener('beforeunload',e=>{if(busy){e.preventDefault();e.returnValue=''}});
+load();
