@@ -134,7 +134,7 @@ The subject array order controls display; the editor reorders both the array and
 
 ## Automatic synchronization and reliability
 
-`.github/workflows/sync-youtube.yml` runs every six hours at minute 17 UTC, with manual dispatch available. GitHub scheduled jobs may be delayed and run only on the default branch. GitHub may disable schedules in inactive public repositories; check Actions if refreshes stop.
+`.github/workflows/sync-youtube.yml` runs every hour at minute 17 UTC, with manual dispatch available. GitHub scheduled jobs may be delayed and run only on the default branch. GitHub may disable schedules in inactive public repositories; check Actions if refreshes stop.
 
 The Node script:
 
