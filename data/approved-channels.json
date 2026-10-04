@@ -8,5 +8,15 @@
     "enabled": true,
     "order": 0,
     "dateAdded": "2026-10-04T18:40:35.711421Z"
+  },
+  {
+    "id": "channel-d51fd8b2303eb948",
+    "url": "https://www.youtube.com/@RedaElFaroukOfficial",
+    "subject": "arabic",
+    "teacher": "رضا الفاروق",
+    "grade": "",
+    "enabled": true,
+    "order": 1,
+    "dateAdded": "2026-10-04T19:21:17.969Z"
   }
 ]
