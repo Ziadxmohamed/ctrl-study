@@ -1,26 +1,13 @@
 {
   "demo": false,
-  "lastAttemptAt": "2026-10-04T18:33:28.983Z",
-  "lastSuccessAt": "2026-10-04T18:33:28.983Z",
-  "status": "ok",
+  "status": "pending",
+  "lastAttemptAt": null,
+  "lastSuccessAt": null,
   "channels": [
     {
-      "id": "3blue1brown",
-      "status": "ok",
-      "videoCount": 245,
-      "lastSuccessAt": "2026-10-04T18:33:28.983Z"
-    },
-    {
-      "id": "khan-academy",
-      "status": "ok",
-      "videoCount": 9446,
-      "lastSuccessAt": "2026-10-04T18:33:28.983Z"
-    },
-    {
-      "id": "crash-course",
-      "status": "ok",
-      "videoCount": 1715,
-      "lastSuccessAt": "2026-10-04T18:33:28.983Z"
+      "id": "mohamed-salah",
+      "status": "pending",
+      "lastSuccessAt": null
     }
   ]
 }

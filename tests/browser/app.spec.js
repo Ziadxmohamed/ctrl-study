@@ -26,7 +26,7 @@ test('library failures and malformed JSON have retry state',async({page})=>{
  await page.route('**/data/videos.json',route=>route.fulfill({contentType:'application/json',body:'{broken'}));await page.goto('./');await expect(page.locator('#content .notice')).toBeVisible();await expect(page.locator('#content button')).toBeVisible();
 });
 test('disabled and changed approvals hide videos even with stale generated data',async({page})=>{
- await page.route('**/data/approved-channels.json',async route=>{const res=await route.fetch();const items=await res.json();items[0].enabled=false;items[1].url='https://www.youtube.com/@changed';await route.fulfill({json:items})});await page.goto('./#latest');await expect(page.locator('.video-card')).toHaveCount(1);
+ await page.route('**/data/approved-channels.json',async route=>{const items=JSON.parse(await readFile(new URL('../fixtures/approved-channels.json',import.meta.url),'utf8'));items[0].enabled=false;items[1].url='https://www.youtube.com/@changed';await route.fulfill({json:items})});await page.goto('./#latest');await expect(page.locator('.video-card')).toHaveCount(1);
 });
 test('public manager edits config and reports invalid channel URLs',async({page})=>{
  await page.goto('./admin/');await expect(page.locator('#channel-list .admin-row')).toHaveCount(3);

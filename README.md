@@ -34,7 +34,7 @@ npm run serve
 
 Open <http://localhost:8080>. Do not open `index.html` using `file://`: JSON fetching, modules and service workers require HTTP. Localhost is allowed for service workers; production requires HTTPS.
 
-The included three channels and six lessons are **demo data**. The demo banner remains until the first synchronization. Demo publication dates and durations are sample metadata; API synchronization replaces them with authoritative metadata. Lessons remain subject to their owners' availability and embed policies. Seven subjects are provided; subjects with no approved channel have an intentional empty state. Edit or replace the demo configuration before student use.
+The published configuration approves only **محمد صلاح — بسطتهالك** (`@mohamedsalah.bassthalk`), assigned to Arabic. Seven subjects are provided; subjects without an approved channel have an intentional empty state. Edit the approval configuration to add or replace channels. Lessons are populated from the official API and remain subject to their owners' availability and embed policies. Clearly marked demo data remains isolated in `tests/fixtures/` for reproducible tests and is not part of the published website.
 
 ## Exact GitHub deployment steps
 
