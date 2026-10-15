@@ -1,26 +1,26 @@
 {
   "demo": false,
-  "lastAttemptAt": "2026-10-14T22:20:35.600Z",
-  "lastSuccessAt": "2026-10-14T22:20:35.600Z",
+  "lastAttemptAt": "2026-10-15T01:32:13.539Z",
+  "lastSuccessAt": "2026-10-15T01:32:13.539Z",
   "status": "ok",
   "channels": [
     {
       "id": "mohamed-salah",
       "status": "ok",
       "videoCount": 645,
-      "lastSuccessAt": "2026-10-14T22:20:35.600Z"
+      "lastSuccessAt": "2026-10-15T01:32:13.539Z"
     },
     {
       "id": "channel-d51fd8b2303eb948",
       "status": "ok",
       "videoCount": 714,
-      "lastSuccessAt": "2026-10-14T22:20:35.600Z"
+      "lastSuccessAt": "2026-10-15T01:32:13.539Z"
     },
     {
       "id": "channel-d3a622813f0998be",
       "status": "ok",
       "videoCount": 197,
-      "lastSuccessAt": "2026-10-14T22:20:35.600Z"
+      "lastSuccessAt": "2026-10-15T01:32:13.539Z"
     }
   ]
 }
